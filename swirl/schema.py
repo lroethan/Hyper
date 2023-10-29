@@ -1,13 +1,13 @@
 import importlib
 import logging
 
-from index_selection_evaluation.selection.dbms.postgres_dbms import PostgresDatabaseConnector
+from index_selection_evaluation.selection.dbms.tidb_dbms import TiDBDatabaseConnector
 from index_selection_evaluation.selection.table_generator import TableGenerator
 
 
 class Schema(object):
     def __init__(self, benchmark_name, scale_factor, filters={}):
-        generating_connector = PostgresDatabaseConnector(None, autocommit=True)
+        generating_connector = TiDBDatabaseConnector(None, autocommit=True)
         table_generator = TableGenerator(
             benchmark_name=benchmark_name.lower(), scale_factor=scale_factor, database_connector=generating_connector
         )
@@ -29,7 +29,7 @@ class Schema(object):
 class TableNumRowsFilter(object):
     def __init__(self, threshold, database_name):
         self.threshold = threshold
-        self.connector = PostgresDatabaseConnector(database_name, autocommit=True)
+        self.connector = TiDBDatabaseConnector(database_name, autocommit=True)
         self.connector.create_statistics()
 
     def apply_filter(self, columns):
@@ -38,7 +38,7 @@ class TableNumRowsFilter(object):
         for column in columns:
             table_name = column.table.name
             table_num_rows = self.connector.exec_fetch(
-                f"SELECT reltuples::bigint AS estimate FROM pg_class where relname='{table_name}'"
+                f"SELECT COUNT(*) AS estimate FROM `{table_name}`"
             )[0]
 
             if table_num_rows > self.threshold:

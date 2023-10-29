@@ -30,7 +30,7 @@ class TiDBCostEvaluation:
 
         self.completed = False
         # It is not necessary to drop hypothetical indexes during __init__().
-        # These are only created per connection. Hence, non should be present.
+        # These are only created **per connection**. Hence, non should be present.
 
         self.relevant_indexes_cache = {}
 

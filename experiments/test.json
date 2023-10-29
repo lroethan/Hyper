@@ -1,7 +1,7 @@
 {
-  "id": "TPCDS_Test_Experiment",
-  "description": "Just a TPCDS Test Experiment",
-  "gym_version": 1,
+  "id": "TiDB_TPCDS_Test_Experiment",
+  "description": "Just a TPCDS Test Experiment for TiDB",
+  "gym_version": 4,
   "timesteps": 100000,
   "random_seed": 60,
   "parallel_environments": 16,
@@ -38,7 +38,7 @@
   },
   "workload": {
     "benchmark": "TPCDS",
-    "scale_factor": 10,
+    "scale_factor": 1,
     "size": 50,
     "varying_frequencies": true,
     "training_instances": 4000,

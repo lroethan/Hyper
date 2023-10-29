@@ -8,4 +8,4 @@ register(id="DB-v2", entry_point="gym_db.envs:DBEnvV2")
 # Action masking is only used to prevent repeated indexing actions.
 register(id="DB-v3", entry_point="gym_db.envs:DBEnvV3")
 # This environment is for TiDB
-register(id="DB-ti", entry_point="gym_db.envs:DBEnvTi")
+register(id="DB-v4", entry_point="gym_db.envs:DBEnvV4")

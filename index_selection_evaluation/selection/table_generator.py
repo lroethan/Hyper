@@ -16,7 +16,7 @@ class TableGenerator:
         database_connector,
         explicit_database_name=None,
     ):
-        self.scale_factor = scale_factor
+        self.scale_factor = 1
         self.benchmark_name = benchmark_name
         self.db_connector = database_connector
         self.explicit_database_name = explicit_database_name
@@ -36,7 +36,7 @@ class TableGenerator:
         if self.explicit_database_name:
             return self.explicit_database_name
 
-        name = "indexselection_" + self.benchmark_name + "___"
+        name = "Hyper_" + self.benchmark_name + "_sf_"
         name += str(self.scale_factor).replace(".", "_")
         return name
 

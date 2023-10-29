@@ -14,7 +14,7 @@ import numpy as np
 from gym_db.common import EnvironmentType
 from index_selection_evaluation.selection.algorithms.db2advis_algorithm import DB2AdvisAlgorithm
 from index_selection_evaluation.selection.algorithms.extend_algorithm import ExtendAlgorithm
-from index_selection_evaluation.selection.dbms.postgres_dbms import PostgresDatabaseConnector
+from index_selection_evaluation.selection.dbms.tidb_dbms import TiDBDatabaseConnector
 
 from . import utils
 from .configuration_parser import ConfigurationParser
@@ -50,55 +50,59 @@ class Experiment(object):
         self._create_experiment_folder()
 
     def prepare(self):
-        self.schema = Schema(
-            self.config["workload"]["benchmark"],
-            self.config["workload"]["scale_factor"],
-            self.config["column_filters"],
-        )
-
-        self.workload_generator = WorkloadGenerator(
-            self.config["workload"],
-            workload_columns=self.schema.columns,
-            random_seed=self.config["random_seed"],
-            database_name=self.schema.database_name,
-            experiment_id=self.id,
-            filter_utilized_columns=self.config["filter_utilized_columns"],
-        )
-        self._assign_budgets_to_workloads()
-        self._pickle_workloads()
-
-        self.globally_indexable_columns = self.workload_generator.globally_indexable_columns
-
-        # [[single column indexes], [2-column combinations], [3-column combinations]...]
-        self.globally_indexable_columns = utils.create_column_permutation_indexes(
-            self.globally_indexable_columns, self.config["max_index_width"]
-        )
-
-        self.single_column_flat_set = set(map(lambda x: x[0], self.globally_indexable_columns[0]))
-
-        self.globally_indexable_columns_flat = [item for sublist in self.globally_indexable_columns for item in sublist]
-        logging.info(f"Feeding {len(self.globally_indexable_columns_flat)} candidates into the environments.")
-
-        self.action_storage_consumptions = utils.predict_index_sizes(
-            self.globally_indexable_columns_flat, self.schema.database_name
-        )
-
-        if "workload_embedder" in self.config:
-            workload_embedder_class = getattr(
-                importlib.import_module("swirl.workload_embedder"), self.config["workload_embedder"]["type"]
-            )
-            workload_embedder_connector = PostgresDatabaseConnector(self.schema.database_name, autocommit=True)
-            self.workload_embedder = workload_embedder_class(
-                self.workload_generator.query_texts,
-                self.config["workload_embedder"]["representation_size"],
-                workload_embedder_connector,
-                self.globally_indexable_columns,
+        
+        if self.config["gym_version"] == 4:
+            raise NotImplementedError
+        else:
+            self.schema = Schema(
+                self.config["workload"]["benchmark"],
+                self.config["workload"]["scale_factor"],
+                self.config["column_filters"],
             )
 
-        self.multi_validation_wl = []
-        if len(self.workload_generator.wl_validation) > 1:
-            for workloads in self.workload_generator.wl_validation:
-                self.multi_validation_wl.extend(self.rnd.sample(workloads, min(7, len(workloads))))
+            self.workload_generator = WorkloadGenerator(
+                self.config["workload"],
+                workload_columns=self.schema.columns,
+                random_seed=self.config["random_seed"],
+                database_name=self.schema.database_name,
+                experiment_id=self.id,
+                filter_utilized_columns=self.config["filter_utilized_columns"],
+            )
+            self._assign_budgets_to_workloads()
+            self._pickle_workloads()
+
+            self.globally_indexable_columns = self.workload_generator.globally_indexable_columns
+
+            # [[single column indexes], [2-column combinations], [3-column combinations]...]
+            self.globally_indexable_columns = utils.create_column_permutation_indexes(
+                self.globally_indexable_columns, self.config["max_index_width"]
+            )
+
+            self.single_column_flat_set = set(map(lambda x: x[0], self.globally_indexable_columns[0]))
+
+            self.globally_indexable_columns_flat = [item for sublist in self.globally_indexable_columns for item in sublist]
+            logging.info(f"Feeding {len(self.globally_indexable_columns_flat)} candidates into the environments.")
+
+            self.action_storage_consumptions = utils.predict_index_sizes(
+                self.globally_indexable_columns_flat, self.schema.database_name
+            )
+
+            if "workload_embedder" in self.config:
+                workload_embedder_class = getattr(
+                    importlib.import_module("swirl.workload_embedder"), self.config["workload_embedder"]["type"]
+                )
+                workload_embedder_connector = TiDBDatabaseConnector(self.schema.database_name, autocommit=True)
+                self.workload_embedder = workload_embedder_class(
+                    self.workload_generator.query_texts,
+                    self.config["workload_embedder"]["representation_size"],
+                    workload_embedder_connector,
+                    self.globally_indexable_columns,
+                )
+
+            self.multi_validation_wl = []
+            if len(self.workload_generator.wl_validation) > 1:
+                for workloads in self.workload_generator.wl_validation:
+                    self.multi_validation_wl.extend(self.rnd.sample(workloads, min(7, len(workloads))))
 
     def _assign_budgets_to_workloads(self):
         for workload_list in self.workload_generator.wl_testing:

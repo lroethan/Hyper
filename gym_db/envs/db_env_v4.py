@@ -12,9 +12,9 @@ from index_selection_evaluation.selection.index import Index
 from index_selection_evaluation.selection.utils import b_to_mb
 
 
-class DBEnvTi(gym.Env):
+class DBEnvV4(gym.Env):
     def __init__(self, environment_type=EnvironmentType.TRAINING, config=None):
-        super(DBEnvTi, self).__init__()
+        super(DBEnvV4, self).__init__()
 
         self.rnd = random.Random()
         self.rnd.seed(config["random_seed"])

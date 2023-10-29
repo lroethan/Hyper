@@ -116,6 +116,20 @@ class TiDBDatabaseConnector(DatabaseConnector):
         )
         self._cursor = self._connection.cursor()
 
+    def create_connection(self):
+        if self._connection:
+            self.close()
+        self._connection = pymysql.connect(
+            host="127.0.0.1",
+            port=4000,
+            user="root",
+            password="",
+            database="{}".format(self.db_name),
+            local_infile=True,
+        )
+        self._cursor = self._connection.cursor()
+
+
     def _create_hist_and_meta(self):
         """
         Since this connection specifies a certain database, this function will get stats_histograms and save them in the connection for the calculation of index storage
@@ -327,6 +341,13 @@ class TiDBDatabaseConnector(DatabaseConnector):
             indexes = self.show_simulated_index(table)
             for index in indexes:
                 res.append(index)
+                
+        return res
+    
+    # For TiDBCostEvaluation
+    # hypopg_oid should have a transformation
+    def estimate_index_size(self, hypopg_oid):
+        return self.get_index_size(hypopg_oid)
         
 
     def get_storage_cost(self, oid_list):
