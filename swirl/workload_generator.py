@@ -10,7 +10,7 @@ from index_selection_evaluation.selection.candidate_generation import (
     syntactically_relevant_indexes,
 )
 from index_selection_evaluation.selection.cost_evaluation import CostEvaluation
-from index_selection_evaluation.selection.dbms.postgres_dbms import PostgresDatabaseConnector
+from index_selection_evaluation.selection.dbms.tidb_dbms import TiDBDatabaseConnector
 from index_selection_evaluation.selection.utils import get_utilized_indexes
 from index_selection_evaluation.selection.workload import Query, Workload
 
@@ -76,7 +76,7 @@ class WorkloadGenerator(object):
                 config["validation_testing"]["unknown_query_probabilities"][-1] > 0
             ), "Query unknown_query_probabilities should be larger 0."
 
-            embedder_connector = PostgresDatabaseConnector(self.database_name, autocommit=True)
+            embedder_connector = TiDBDatabaseConnector(self.database_name, autocommit=True)
             embedder = WorkloadEmbedder(
                 # Transform globally_indexable_columns to list of lists.
                 self.query_texts,
@@ -363,7 +363,7 @@ class WorkloadGenerator(object):
             candidate_generator=syntactically_relevant_indexes,
         )
 
-        connector = PostgresDatabaseConnector(self.database_name, autocommit=True)
+        connector = TiDBDatabaseConnector(self.database_name, autocommit=True)
         connector.drop_indexes()
         cost_evaluation = CostEvaluation(connector)
 

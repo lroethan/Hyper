@@ -108,7 +108,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
             self.close()
         self._connection = pymysql.connect(
             host="127.0.0.1",
-            port=4000,
+            port=4002,
             user="root",
             password="",
             database="{}".format(self.db_name),
@@ -121,7 +121,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
             self.close()
         self._connection = pymysql.connect(
             host="127.0.0.1",
-            port=4000,
+            port=4002,
             user="root",
             password="",
             database="{}".format(self.db_name),
