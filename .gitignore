@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 .idea/
 
+index_selection_evaluation/tpcds-kit/
+index_selection_evaluation/tpch-kit/
+
 # Jetbrains
 .idea/
 
