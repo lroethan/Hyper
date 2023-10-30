@@ -51,11 +51,11 @@ class DatabaseConnector:
             elif "select" in query_statement or "SELECT" in query_statement:
                 return query_statement
 
-    def simulate_index(self, index):
+    def simulate_index(self, index, store_size=False):
         self.simulated_indexes += 1
 
         start_time = time.time()
-        result = self._simulate_index(index)
+        result = self._simulate_index(index, store_size)
         end_time = time.time()
         self.index_simulation_duration += end_time - start_time
 
@@ -110,7 +110,7 @@ class DatabaseConnector:
     def _get_plan(self, query):
         raise NotImplementedError
 
-    def _simulate_index(self, index):
+    def _simulate_index(self, index, store_size):
         raise NotImplementedError
 
     def _drop_simulated_index(self, identifier):

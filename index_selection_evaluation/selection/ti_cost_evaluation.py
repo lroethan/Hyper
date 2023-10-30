@@ -56,17 +56,17 @@ class TiDBCostEvaluation:
         recommended_indexes = set()
 
         # We are iterating over the CostEvalution's indexes and not over `indexes`
-        # because it is not guaranteed that hypopg_name is set for all items in
+        # because it is not guaranteed that hypo_oid is set for all items in
         # `indexes`. This is caused by _prepare_cost_calculation that only creates
         # indexes which are not yet existing. If there is no hypothetical index
-        # created for an index object, there is no hypopg_name assigned to it. However,
+        # created for an index object, there is no hypo_oid assigned to it. However,
         # all items in current_indexes must also have an equivalent in `indexes`.
         for index in self.current_indexes:
             assert (
                 index in indexes
             ), "Something went wrong with _prepare_cost_calculation."
 
-            if index.hypopg_name not in plan_str:
+            if index.hypo_oid not in plan_str:
                 continue
             recommended_indexes.add(index)
 

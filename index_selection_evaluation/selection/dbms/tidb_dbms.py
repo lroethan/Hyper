@@ -305,7 +305,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
         return query_plan
 
     def execute_create_hypo(self, index):
-        return self._simulate_index(index)
+        return self._simulate_index(index, )
 
     def execute_delete_hypo(self, ident):
         # ident 是指 表名.列名
@@ -345,6 +345,17 @@ class TiDBDatabaseConnector(DatabaseConnector):
 
         return res
 
+    def _simulate_index(self, index, storage_size):
+        table_name = index.table()
+        statement = (
+            "select * from hypopg_create_index( "
+            f"'create index on {table_name} "
+            f"({index.joined_column_names()})')"
+        )
+        result = self.exec_fetch(statement)
+        return result
+
+
     # For TiDBCostEvaluation
     # hypo_oid should have a transformation
     def estimate_index_size(self, hypo_oid):
@@ -360,7 +371,20 @@ class TiDBDatabaseConnector(DatabaseConnector):
         return costs
 
     def _get_cost(self, query):
-        raise NotImplementedError
+        query_plan = self._get_plan(query)
+        total_cost = query_plan["Total Cost"]
+        return total_cost
+
+    def get_raw_plan(self, query):
+        query_text = self._prepare_query(query)
+        statement = f"explain (format json) {query_text}"
+        query_plan = self.exec_fetch(statement)[0]
+        self._cleanup_query(query)
+        return query_plan
 
     def _get_plan(self, query):
-        raise NotImplementedError
+        query_text = self._prepare_query(query)
+        statement = f"explain (format json) {query_text}"
+        query_plan = self.exec_fetch(statement)[0][0]["Plan"]
+        self._cleanup_query(query)
+        return query_plan
