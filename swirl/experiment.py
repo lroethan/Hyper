@@ -51,7 +51,7 @@ class Experiment(object):
 
     def prepare(self):
         
-        if self.config["gym_version"] == 4:
+        if self.config["gym_version"] == 5:
             raise NotImplementedError
         else:
             self.schema = Schema(

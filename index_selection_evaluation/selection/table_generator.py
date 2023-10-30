@@ -16,7 +16,7 @@ class TableGenerator:
         database_connector,
         explicit_database_name=None,
     ):
-        self.scale_factor = 1
+        self.scale_factor = scale_factor
         self.benchmark_name = benchmark_name
         self.db_connector = database_connector
         self.explicit_database_name = explicit_database_name
