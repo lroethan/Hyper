@@ -9,7 +9,7 @@ class Index:
         self.columns = tuple(columns)
         # Store hypopg estimated size when `store_size=True` (whatif)
         self.estimated_size = estimated_size
-        self.hypopg_name = None
+        self.hypo_oid = None
 
     # Used to sort indexes
     def __lt__(self, other):

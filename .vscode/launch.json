@@ -11,7 +11,7 @@
             "module": "swirl",
             "args": ["experiments/test.json"],
             "justMyCode": true,
-            "pythonPath": "/home/ubuntu/miniconda3/envs/hyper/bin/python"
+            "python": "/home/ubuntu/miniconda3/envs/hyper/bin/python"
         }
     ]
 }

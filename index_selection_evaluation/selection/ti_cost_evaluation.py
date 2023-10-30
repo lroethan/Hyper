@@ -10,12 +10,9 @@ class TiDBCostEvaluation:
         self.db_connector = db_connector
         self.cost_estimation = cost_estimation
         logging.info("Cost estimation with " + self.cost_estimation)
-        # For convenience, we implemented it in TiDBConncetor
-        # self.what_if = WhatIfIndexCreation(db_connector)
-        self.what_if = db_connector
         self.current_indexes = set()
 
-        assert len(self.what_if.all_simulated_indexes()) == len(self.current_indexes)
+        assert len(self.db_connector.all_simulated_indexes()) == len(self.current_indexes)
 
         self.cost_requests = 0
         self.cache_hits = 0
@@ -44,7 +41,8 @@ class TiDBCostEvaluation:
         if result:
             # Index does currently exist and size can be queried
             if not index.estimated_size:
-                index.estimated_size = self.what_if.estimate_index_size(result.hypo_oid)
+                # TODO：identify hypo_oid
+                index.estimated_size = self.db_connector.estimate_index_size(result.hypo_oid)
         else:
             self._simulate_or_create_index(index, store_size=True)
 
@@ -122,21 +120,21 @@ class TiDBCostEvaluation:
         assert self.current_indexes == set(indexes)
 
     def _simulate_or_create_index(self, index, store_size=False):
-        if self.cost_estimation == "whatif":
-            self.what_if.simulate_index(index, store_size=store_size)
+        if self.cost_estimation == "TiDB-Hypo":
+            self.db_connector.simulate_index(index, store_size=store_size)
         elif self.cost_estimation == "actual_runtimes":
             self.db_connector.create_index(index)
         self.current_indexes.add(index)
 
     def _unsimulate_or_drop_index(self, index):
-        if self.cost_estimation == "whatif":
-            self.what_if.drop_simulated_index(index)
+        if self.cost_estimation == "TiDB-Hypo":
+            self.db_connector.drop_simulated_index(index)
         elif self.cost_estimation == "actual_runtimes":
             self.db_connector.drop_index(index)
         self.current_indexes.remove(index)
 
     def _get_cost(self, query):
-        if self.cost_estimation == "whatif":
+        if self.cost_estimation == "TiDB-Hypo":
             return self.db_connector.get_cost(query)
         elif self.cost_estimation == "actual_runtimes":
             runtime = self.db_connector.exec_query(query)[0]

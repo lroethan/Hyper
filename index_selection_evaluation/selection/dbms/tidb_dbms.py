@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import time
@@ -32,7 +33,7 @@ def trim_and_split_explain_result(explain_result):
     if p != 3:
         raise Exception("invalid explain result")
 
-    return lines[idx[0] : idx[2] + 1]
+    return lines[idx[0]: idx[2] + 1]
 
 
 def split_rows(rows):
@@ -46,7 +47,7 @@ def split_rows(rows):
 
 def parse_text(explain_text):
     explain_lines = trim_and_split_explain_result(explain_text)
-    rows = split_rows(explain_lines[3 : len(explain_lines) - 1])
+    rows = split_rows(explain_lines[3: len(explain_lines) - 1])
     result = {}
     for row in rows:
         db_name = row[0]
@@ -100,7 +101,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
         self._create_connection()
         self._create_hist_and_meta()
         self.set_random_seed()
-        
+
         logging.debug("TiDB connector created: {}".format(db_name))
 
     def _create_connection(self):
@@ -128,7 +129,6 @@ class TiDBDatabaseConnector(DatabaseConnector):
             local_infile=True,
         )
         self._cursor = self._connection.cursor()
-
 
     def _create_hist_and_meta(self):
         """
@@ -334,7 +334,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
             indexes = self.show_simulated_index(table)
             for index in indexes:
                 self.execute_delete_hypo(index)
-                
+
     def all_simulated_indexes(self):
         res = []
         tables = self.get_tables()
@@ -342,16 +342,16 @@ class TiDBDatabaseConnector(DatabaseConnector):
             indexes = self.show_simulated_index(table)
             for index in indexes:
                 res.append(index)
-                
+
         return res
-    
+
     # For TiDBCostEvaluation
     # hypo_oid should have a transformation
     def estimate_index_size(self, hypo_oid):
         return self.get_index_size(hypo_oid)
-        
 
-    def get_storage_cost(self, oid_list):
+    @staticmethod
+    def get_storage_cost(oid_list):
         costs = list()
         for i, oid in enumerate(oid_list):
             cost_long = 0
@@ -359,3 +359,8 @@ class TiDBDatabaseConnector(DatabaseConnector):
             # print(cost_long)
         return costs
 
+    def _get_cost(self, query):
+        raise NotImplementedError
+
+    def _get_plan(self, query):
+        raise NotImplementedError
