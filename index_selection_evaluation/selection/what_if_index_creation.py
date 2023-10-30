@@ -18,13 +18,13 @@ class WhatIfIndexCreation:
         index_name = result[1]
         self.simulated_indexes[index_oid] = index_name
         potential_index.hypopg_name = index_name
-        potential_index.hypopg_oid = index_oid
+        potential_index.hypo_oid = index_oid
 
         if store_size:
             potential_index.estimated_size = self.estimate_index_size(index_oid)
 
     def drop_simulated_index(self, index):
-        oid = index.hypopg_oid
+        oid = index.hypo_oid
         self.db_connector.drop_simulated_index(oid)
         del self.simulated_indexes[oid]
 

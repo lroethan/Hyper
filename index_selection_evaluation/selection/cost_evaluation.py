@@ -35,7 +35,7 @@ class CostEvaluation:
 
     def estimate_size(self, index):
         # TODO: Refactor: It is currently too complicated to compute
-        # We must search in current indexes to get an index object with .hypopg_oid
+        # We must search in current indexes to get an index object with .hypo_oid
         result = None
         for i in self.current_indexes:
             if index == i:
@@ -44,7 +44,7 @@ class CostEvaluation:
         if result:
             # Index does currently exist and size can be queried
             if not index.estimated_size:
-                index.estimated_size = self.what_if.estimate_index_size(result.hypopg_oid)
+                index.estimated_size = self.what_if.estimate_index_size(result.hypo_oid)
         else:
             self._simulate_or_create_index(index, store_size=True)
 

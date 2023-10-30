@@ -3,7 +3,7 @@ import logging
 import gensim
 from sklearn.decomposition import PCA
 
-from index_selection_evaluation.selection.cost_evaluation import CostEvaluation
+from index_selection_evaluation.selection.ti_cost_evaluation import TiDBCostEvaluation
 from index_selection_evaluation.selection.index import Index
 from index_selection_evaluation.selection.workload import Query
 
@@ -45,7 +45,7 @@ class WorkloadEmbedder(object):
         self.columns = columns
 
         if retrieve_plans:
-            cost_evaluation = CostEvaluation(self.database_connector)
+            cost_evaluation = TiDBCostEvaluation(self.database_connector)
             # [without indexes], [with indexes]
             self.plans = ([], [])
             for query_idx, query_texts_per_query_class in enumerate(query_texts):

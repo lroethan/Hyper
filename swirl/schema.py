@@ -30,7 +30,7 @@ class TableNumRowsFilter(object):
     def __init__(self, threshold, database_name):
         self.threshold = threshold
         self.connector = TiDBDatabaseConnector(database_name, autocommit=True)
-        self.connector.create_statistics()
+        # self.connector.create_statistics()
 
     def apply_filter(self, columns):
         output_columns = []

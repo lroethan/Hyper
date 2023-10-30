@@ -9,7 +9,7 @@ from index_selection_evaluation.selection.candidate_generation import (
     candidates_per_query,
     syntactically_relevant_indexes,
 )
-from index_selection_evaluation.selection.cost_evaluation import CostEvaluation
+from index_selection_evaluation.selection.ti_cost_evaluation import TiDBCostEvaluation
 from index_selection_evaluation.selection.dbms.tidb_dbms import TiDBDatabaseConnector
 from index_selection_evaluation.selection.utils import get_utilized_indexes
 from index_selection_evaluation.selection.workload import Query, Workload
@@ -365,7 +365,7 @@ class WorkloadGenerator(object):
 
         connector = TiDBDatabaseConnector(self.database_name, autocommit=True)
         connector.drop_indexes()
-        cost_evaluation = CostEvaluation(connector)
+        cost_evaluation = TiDBCostEvaluation(connector)
 
         utilized_indexes, query_details = get_utilized_indexes(workload, candidates, cost_evaluation, True)
 

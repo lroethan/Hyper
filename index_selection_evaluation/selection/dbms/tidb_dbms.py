@@ -99,8 +99,8 @@ class TiDBDatabaseConnector(DatabaseConnector):
         self.db_name = db_name
         self._create_connection()
         self._create_hist_and_meta()
-
         self.set_random_seed()
+        
         logging.debug("TiDB connector created: {}".format(db_name))
 
     def _create_connection(self):
@@ -192,6 +192,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
         logging.info(f"Database {database_name} dropped")
 
     def create_statistics(self):
+        # raise NotImplementedError
         logging.info("TiDB: Run `analyze`")
         for table_name, table_type in self.exec_fetch("show full tables", False):
             if table_type != "BASE TABLE":
@@ -345,9 +346,9 @@ class TiDBDatabaseConnector(DatabaseConnector):
         return res
     
     # For TiDBCostEvaluation
-    # hypopg_oid should have a transformation
-    def estimate_index_size(self, hypopg_oid):
-        return self.get_index_size(hypopg_oid)
+    # hypo_oid should have a transformation
+    def estimate_index_size(self, hypo_oid):
+        return self.get_index_size(hypo_oid)
         
 
     def get_storage_cost(self, oid_list):
