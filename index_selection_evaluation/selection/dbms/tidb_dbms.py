@@ -239,7 +239,7 @@ class TiDBDatabaseConnector(DatabaseConnector):
         statement = f"alter table {table_name} set hypo tiflash replica 0"
         self.exec_only(statement)
 
-    def _simulate_index(self, index):
+    def _simulate_index(self, index, storage_size=False):
         """
         Candidate index is in the format of table_name#col1,col2,col3
         identifier is in the format of tablename.hypo_table_name_col1_col2_col3_idx
@@ -345,15 +345,15 @@ class TiDBDatabaseConnector(DatabaseConnector):
 
         return res
 
-    def _simulate_index(self, index, storage_size):
-        table_name = index.table()
-        statement = (
-            "select * from hypopg_create_index( "
-            f"'create index on {table_name} "
-            f"({index.joined_column_names()})')"
-        )
-        result = self.exec_fetch(statement)
-        return result
+    # def _simulate_index(self, index, storage_size):
+    #     table_name = index.table()
+    #     statement = (
+    #         "select * from hypopg_create_index( "
+    #         f"'create index on {table_name} "
+    #         f"({index.joined_column_names()})')"
+    #     )
+    #     result = self.exec_fetch(statement)
+    #     return result
 
 
     # For TiDBCostEvaluation

@@ -1,6 +1,7 @@
 import copy
 import logging
 import random
+import pickle
 
 import numpy as np
 
@@ -30,6 +31,7 @@ class WorkloadGenerator(object):
         ], f"Benchmark '{config['benchmark']}' is currently not supported."
 
         # For create view statement differentiation
+        # 实验ID，例如 TiDB_TPCDS_Test_Experiment
         self.experiment_id = experiment_id
         self.filter_utilized_columns = filter_utilized_columns
 
@@ -50,6 +52,7 @@ class WorkloadGenerator(object):
         self.query_classes = set(range(1, self.number_of_query_classes + 1))
         self.available_query_classes = self.query_classes - self.excluded_query_classes
 
+        # Workload 中包含的所有可索引的列
         self.globally_indexable_columns = self._select_indexable_columns(self.filter_utilized_columns)
 
         validation_instances = config["validation_testing"]["number_of_workloads"]
@@ -154,43 +157,29 @@ class WorkloadGenerator(object):
         if self.benchmark == "TPCH":
             return 22
         elif self.benchmark == "TPCDS":
-            return 99
+            return 60
         elif self.benchmark == "JOB":
             return 113
         else:
             raise ValueError("Unsupported Benchmark type provided, only TPCH, TPCDS, and JOB supported.")
 
     def _retrieve_query_texts(self):
-        query_files = [
-            open(f"{QUERY_PATH}/{self.benchmark}/{self.benchmark}_{file_number}.txt", "r")
-            for file_number in range(1, self.number_of_query_classes + 1)
-        ]
 
-        finished_queries = []
-        for query_file in query_files:
-            queries = query_file.readlines()[:1]
-            queries = self._preprocess_queries(queries)
-
-            finished_queries.append(queries)
-
-            query_file.close()
-
-        assert len(finished_queries) == self.number_of_query_classes
-
-        return finished_queries
-
-    def _preprocess_queries(self, queries):
         processed_queries = []
+        file_path = f"{QUERY_PATH}/{self.benchmark}/queries.pickle"
+        with open(file_path, 'rb') as file:
+            queries = pickle.load(file)
         for query in queries:
+            # Query 预处理
             query = query.replace("limit 100", "")
             query = query.replace("limit 20", "")
             query = query.replace("limit 10", "")
             query = query.strip()
-
             if "create view revenue0" in query:
                 query = query.replace("revenue0", f"revenue0_{self.experiment_id}")
-
             processed_queries.append(query)
+
+        assert len(processed_queries) == self.number_of_query_classes
 
         return processed_queries
 
@@ -221,10 +210,13 @@ class WorkloadGenerator(object):
             queries = []
 
             for query_class, frequency in zip(query_classes, query_class_frequencies):
-                query_text = self.rnd.choice(self.query_texts[query_class - 1])
+                # 为什么这样写？
+                # query_text = self.rnd.choice(self.query_texts[query_class - 1])
+                query_text = self.rnd.choice(self.query_texts)
 
                 query = Query(query_class, query_text, frequency=frequency)
 
+                # Query 中包含和目前考虑的列（e.g., TPCDS 由 470+ 列过滤到 275 列）中有交叠的部分，并且存储在 Query 中
                 self._store_indexable_columns(query)
                 assert len(query.columns) > 0, f"Query columns should have length > 0: {query.text}"
 
