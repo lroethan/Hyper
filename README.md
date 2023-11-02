@@ -1,5 +1,33 @@
 # SWIRL: Selection of Workload-aware Indexes using Reinforcement Learning
 
+
+
+## Tips 
+1. 看完后面的 README 再看这个部分；
+2. 首先创建实验结果文件夹，在 Debug 的时候每次需要手动清空一下实验结果文件夹的内容；
+```bash
+$ mkdir experiment_results
+
+$ ./clean_exp_results.sh
+```
+
+3. 测试实验脚本 `test.json`
+
+
+```bash
+$ python -m swirl experiments/test.json 
+```
+
+4. TPC-DS-kit 编译 dbgen 之前有个补丁打一下，不然编译会报错，这个实验整体上会先生成数据然后真实的导入到数据库里，例如`Hyper_xxxxxx` 这个 DB，再次实验的时候会判定相同的实验参数所代表的数据库是否存在，如果存在就不会重新生成数据了。
+
+5. 重点关注:
+   1. `rl_index_selection/index_selection_evaluation/selection/cost_evaluation.py`
+   2. `rl_index_selection/index_selection_evaluation/selection/what_if_index_creation.py`
+   3. 以上两个逻辑我想合并到 DBConnector 以及 ti_cost_evaluation
+
+
+6. 函数命名很痛苦。
+
 This repository provides some additional experimental data for the [EDBT 2022 paper](https://openproceedings.org/2022/conf/edbt/paper-37.pdf) _SWIRL: Selection of Workload-aware Indexes using Reinforcement Learning_ and the source code for SWIRL. The repository is [licensed](LICENSE) under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/) (CC BY-NC-SA 4.0) [license](https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 
 If you have any questions, feel free to contact the authors, e.g., Jan Kossmann via jan.kossmann@hpi.de
