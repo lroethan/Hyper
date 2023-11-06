@@ -58,7 +58,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         stmt = f"create index %s type hypo on %s (%s)" % (idx_name, table_name, col_str)
         self.exec_fetch(stmt)
         self.hypo2info[oid] = {"table_name": table_name, 
-                               "create_name": idx_name, 
+                               "index_name": idx_name, 
                                "columns": cols, 
                                "size": 0} # TODO: estimate the size
         print("[action] create hypo index %s" % (idx_name))
@@ -68,7 +68,12 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         Return hypoid
         """
-        pass    
+        oid = self.gen_oid()
+        stmt = f"alter table %s set hypo tiflash replica 1" % (table_name)
+        self.exec_fetch(stmt)
+        self.hypo2info[oid] = {"table_name": table_name,
+                               "is_tiflash": True}
+        return oid
     
     def real_create_secondary_index(self, table_name:str, cols:List[str]) -> bool:
         """
@@ -94,18 +99,22 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         pass 
     
-    def hypo_delete_single_physical_design(self, hypo_id:str) -> bool:
+    def hypo_delete_single_physical_design(self, hypo_id:int) -> bool:
         """
         给 hypoid 这里可以统一处理 tikv hypo 和 Tiflash hypo
         """
-        pass
-    
+        hypo = self.hypo2info[hypo_id]
+        if hypo["is_tiflash"]:
+            stmt = f"alter table %s set hypo tiflash replica 0" % (hypo["table_name"])
+        else:
+            stmt = f"drop hypo index %s on %s" % (hypo["index_name"], hypp["table_name"])
+        self.exec_fetch(stmt)
     
     def hypo_get_count(self) -> int:
         """
         len(hypo2info)
         """
-        pass
+        return len(self.hypo2info)
     
     def get_plan_single(slef, query:str) -> str:
         pass
