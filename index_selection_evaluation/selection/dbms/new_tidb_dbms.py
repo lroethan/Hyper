@@ -126,14 +126,26 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         return len(self.hypo2info)
     
-    def get_plan_single(slef, query:str) -> str:
-        pass
+    def get_plan_single(self, query):
+        # query_text = self._prepare_query(query)
+        statement = f"explain format='verbose' {query}"
+        query_plan = self.exec_fetch(statement, False)
+        for line in query_plan:
+            if "stats:pseudo" in line[5]:
+                print("plan with pseudo stats " + str(query_plan))
+        # self._cleanup_query(query)
+        return query_plan
     
     def get_cost_single(self, query:str) -> int:
-        pass
+        query_plan = self.get_plan_single(query)
+        cost = query_plan[0][2]
+        return float(cost)
     
     def get_cost_workload(self, workload:List[str]) -> int:
-        pass
+        cost = 0
+        for q in workload:
+            cost += self.get_cost_single(q)
+        return cost
     
     def get_storage_single(self, hypo_id:int) -> int:
         hypo = self.hypo2info[hypo_id]
