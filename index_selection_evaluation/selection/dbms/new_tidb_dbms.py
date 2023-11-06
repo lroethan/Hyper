@@ -18,14 +18,12 @@ class TiDBDatabaseConnector2(DatabaseConnector):
             db_name = "test"
         self._connection = None
         self.db_name = db_name
+        self._create_connection()
         
-        # TODO：外部存一个
         self.hypo2info = {}
-        # {hypoid : {表名：xx，列名列表:[xx,xx,xxx]，create_name: xxxx, size:xxx}}
+        self.hypo_oid = 0
         
         # TODO: see cost_evaluation.py for some cache opration?
-        
-
         logging.debug("TiDB connector created: {}".format(db_name))
 
     def _create_connection(self):
@@ -36,7 +34,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
             self.close()
         self._connection = pymysql.connect(
             host="127.0.0.1",
-            port=4002,
+            port=4000,
             user="root",
             password="",
             database="{}".format(self.db_name),
@@ -44,70 +42,178 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         )
         self._cursor = self._connection.cursor()
         
+    def gen_oid(self):
+        oid = self.hypo_oid
+        self.hypo_oid += 1
+        return oid
+
     def hypo_create_secondary_index(self, table_name:str, cols:List[str]) -> [int, bool]:
         """
         Return hypoid
         """
-        pass     
+        oid = self.gen_oid()
+        idx_name = "hypo_%d" % (oid)
+        col_str = ", ".join(cols)
+        stmt = f"create index %s type hypo on %s (%s)" % (idx_name, table_name, col_str)
+        self.exec_only(stmt)
+        self.hypo2info[oid] = {"table_name": table_name, 
+                               "index_name": idx_name, 
+                               "columns": cols}
+        print("[action] create hypo index %s" % (idx_name))
+        return oid
     
     def hypo_create_columnstore_index(self, table_name:str) -> [int, bool]:
         """
         Return hypoid
         """
-        pass    
+        oid = self.gen_oid()
+        stmt = f"alter table %s set hypo tiflash replica 1" % (table_name)
+        self.exec_only(stmt)
+        self.hypo2info[oid] = {"table_name": table_name,
+                               "is_tiflash": True}
+        print("[action] create hypo tiflash %s" % (table_name))
+        return oid
     
     def real_create_secondary_index(self, table_name:str, cols:List[str]) -> bool:
         """
         Return 是否建立成功，这个是用来最后真实的建立索引之后看建立索引之后 time delay 上的效果的，很少调用
         """
-        pass    
+        oid = self.gen_oid()
+        idx_name = "hypo_%d" % (oid)
+        col_str = ", ".join(cols)
+        stmt = f"create index %s on %s (%s)" % (idx_name, table_name, col_str)
+        self.exec_only(stmt)
+        print("[action] create real index %s" % (idx_name))
     
     def real_create_columnstore_index(self, table_name:str) -> bool:
         """
         Return 是否建立成功，这个是用来最后真实的建立索引之后看建立索引之后 time delay 上的效果的，很少调用
         """
-        pass   
+        stmt = f"alter table %s set hypo tiflash replica 1" % (table_name)
+        self.exec_only(stmt)
+        print("[action] create real tiflash %s" % (table_name))
     
     def real_delete_all_physical_designs(self):
         """
         很少执行
         """
-        pass 
+        self.real_delete_all_physical_indexes()
+        self.real_delete_all_physical_tiflashes()
+
+    def real_delete_all_physical_indexes(self):
+        stmt = f"select distinct table_name, index_name from INFORMATION_SCHEMA.STATISTICS where table_schema='%s'" % (self.db_name)
+        indexes = []
+        for table_name, index_name in self.exec_fetch(stmt, False):
+            indexes.append((table_name, index_name))
+        for table_name, index_name in indexes:
+            drop_stmt = f"alter table %s.%s drop index %s" % (self.db_name, table_name, index_name)
+            self.exec_only(drop_stmt)
+    
+    def real_delete_all_physical_tiflashes(self):
+        stmt = f"select table_name from information_schema.tiflash_replica where table_schema='%s'" % (self.db_name)
+        tables = []
+        for table_name in self.exec_fetch(stmt, False):
+            tables.append(table_name)
+        for table_name in tables:
+            drop_stmt = f"alter table %s.%s set tiflash replica 0" % (self.db_name, table_name)
+            self.exec_only(drop_stmt)
     
     def hypo_delete_all_physical_designs(self):
         """
         更新 _conn 即可
         """
-        pass 
+        oids = []
+        for oid in self.hypo2info:
+            oids.append(oid)
+        for oid in oids:
+            self.hypo_delete_single_physical_design(oid)
     
-    def hypo_delete_single_physical_design(self, hypo_id:str) -> bool:
+    def hypo_delete_single_physical_design(self, hypo_id:int) -> bool:
         """
         给 hypoid 这里可以统一处理 tikv hypo 和 Tiflash hypo
         """
-        pass
-    
+        hypo = self.hypo2info[hypo_id]
+        if "is_tiflash" in hypo and hypo["is_tiflash"]:
+            stmt = f"alter table %s set hypo tiflash replica 0" % (hypo["table_name"])
+            print("[action] drop hypo tiflash %s" % hypo["table_name"])
+        else:
+            stmt = f"drop hypo index %s on %s" % (hypo["index_name"], hypo["table_name"])
+            print("[action] drop hypo index %s %s" % (hypo["table_name"], hypo["index_name"]))
+        self.exec_fetch(stmt)
+        del self.hypo2info[hypo_id]
     
     def hypo_get_count(self) -> int:
         """
         len(hypo2info)
         """
-        pass
+        return len(self.hypo2info)
     
-    def get_plan_single(slef, query:str) -> str:
-        pass
+    def get_plan_single(self, query):
+        # query_text = self._prepare_query(query)
+        statement = f"explain format='verbose' {query}"
+        query_plan = self.exec_fetch(statement, False)
+        for line in query_plan:
+            if "stats:pseudo" in line[5]:
+                print("plan with pseudo stats " + str(query_plan))
+        # self._cleanup_query(query)
+        return query_plan
     
     def get_cost_single(self, query:str) -> int:
-        pass
+        query_plan = self.get_plan_single(query)
+        cost = query_plan[0][2]
+        return float(cost)
     
     def get_cost_workload(self, workload:List[str]) -> int:
-        pass
+        cost = 0
+        for q in workload:
+            cost += self.get_cost_single(q)
+        return cost
     
-    def get_storage_single(self, hypo_id:str) -> int:
-        pass
+    def get_storage_single(self, hypo_id:int) -> int:
+        hypo = self.hypo2info[hypo_id]
+        if "is_tiflash" in hypo:
+            return self.get_hypo_tiflash_storage(hypo_id)
+        else:
+            return self.get_hypo_index_storage(hypo_id)
     
-    def get_storage_whole(self, hypo_id_list:List(str)) -> int:
-        pass
+    def get_storage_whole(self, hypo_id_list) -> int:
+        storage_cost = 0
+        for id in hypo_id_list:
+            storage_cost += self.get_storage_single(id)
+        return storage_cost
     
+    def get_hypo_index_storage(self, hypo_id):
+        hypo = self.hypo2info[hypo_id]
+        col_size = 0
+        for col in hypo["columns"]:
+            col_size += self.get_column_avg_size(self.db_name, hypo["table_name"], col)
+        rows = self.get_total_rows(self.db_name, hypo["table_name"])
+        return rows * col_size
+    
+    def get_hypo_tiflash_storage(self, hypo_id):
+        hypo = self.hypo2info[hypo_id]
+        col_size = self.get_table_avg_size(self.db_name, hypo["table_name"])
+        rows = self.get_total_rows(self.db_name, hypo["table_name"])
+        compression_rate = 0.35
+        return rows * col_size * compression_rate
+
+    def get_column_avg_size(self, db_name, tbl_name, col_name):
+        stmt = f"show stats_histograms where db_name='%s' and table_name='%s' and column_name='%s' and is_index=0" % (db_name, tbl_name, col_name)
+        avg_size_in_byte = self.exec_fetch(stmt, True)[8]
+        return float(avg_size_in_byte)
+    
+    def get_table_avg_size(self, db_name, tbl_name):
+        stmt = f"show stats_histograms where db_name='%s' and table_name='%s' and is_index=0" % (db_name, tbl_name)
+        rows = self.exec_fetch(stmt, one=False)
+        col_size = 0
+        for r in rows:
+            col_size += float(r[8])
+        return col_size
+
+    def get_total_rows(self, db_name, tbl_name):
+        stmt = f"show stats_meta where db_name='%s' and table_name='%s'" % (db_name, tbl_name)
+        row_count = self.exec_fetch(stmt, True)[5]
+        return float(row_count)
     
     def import_data(self, table, path, delimiter="|"):
         load_sql = f"load data local infile '{path}' into table {table} fields terminated by '{delimiter}'"
@@ -174,93 +280,6 @@ class TiDBDatabaseConnector2(DatabaseConnector):
             if "drop view" in query_statement:
                 self.exec_only(query_statement)
 
-    # def _get_cost(self, query):
-    #     query_plan = self._get_plan(query)
-    #     cost = query_plan[0][2]
-    #     return float(cost)
-
-    # def _get_plan(self, query):
-    #     query_text = self._prepare_query(query)
-    #     statement = f"explain format='verbose' {query_text}"
-    #     query_plan = self.exec_fetch(statement, False)
-    #     for line in query_plan:
-    #         if "stats:pseudo" in line[5]:
-    #             print("plan with pseudo stats " + str(query_plan))
-    #     self._cleanup_query(query)
-    #     return query_plan
-
-    # def execute_create_hypo(self, index):
-    #     return self._simulate_index(index, )
-
-    # def execute_delete_hypo(self, ident):
-    #     # ident 是指 表名.列名
-    #     return self._drop_simulated_index(ident)
-
-    # def get_queries_cost(self, query_list):
-    #     cost_list: List[float] = list()
-    #     for i, query in enumerate(query_list):
-    #         query_plan = self._get_plan(query)
-    #         cost = query_plan[0][2]
-    #         cost_list.append(float(cost))
-    #     return cost_list
-
     def get_tables(self):
         result = self.exec_fetch("show tables", False)
         return [x[0] for x in result]
-
-    # def delete_indexes(self):
-    #     # Delete all hypo PD
-    #     tables = self.get_tables()
-    #     for table in tables:
-    #         # 1. Delete all hypo tiflash
-    #         statement = f"alter table {table} set hypo tiflash replica 0"
-    #         self.exec_only(statement)
-    #         # 2. Delete all hypo index
-    #         indexes = self.show_simulated_index(table)
-    #         for index in indexes:
-    #             self.execute_delete_hypo(index)
-
-    # def all_simulated_indexes(self):
-    #     res = []
-    #     tables = self.get_tables()
-    #     for table in tables:
-    #         indexes = self.show_simulated_index(table)
-    #         for index in indexes:
-    #             res.append(index)
-
-    #     return res
-
-
-
-    # For TiDBCostEvaluation
-    # hypo_oid should have a transformation
-    # def estimate_index_size(self, hypo_oid):
-    #     return self.get_index_size(hypo_oid)
-
-    # @staticmethod
-    # def get_storage_cost(oid_list):
-    #     costs = list()
-    #     for i, oid in enumerate(oid_list):
-    #         cost_long = 0
-    #         costs.append(cost_long)
-    #         # print(cost_long)
-    #     return costs
-
-    # def _get_cost(self, query):
-    #     query_plan = self._get_plan(query)
-    #     total_cost = query_plan["Total Cost"]
-    #     return total_cost
-
-    # def get_raw_plan(self, query):
-    #     query_text = self._prepare_query(query)
-    #     statement = f"explain (format json) {query_text}"
-    #     query_plan = self.exec_fetch(statement)[0]
-    #     self._cleanup_query(query)
-    #     return query_plan
-
-    # def _get_plan(self, query):
-    #     query_text = self._prepare_query(query)
-    #     statement = f"explain (format json) {query_text}"
-    #     query_plan = self.exec_fetch(statement)[0][0]["Plan"]
-    #     self._cleanup_query(query)
-    #     return query_plan
