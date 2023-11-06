@@ -21,11 +21,10 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         
         # TODO：外部存一个
         self.hypo2info = {}
+        self.hypo_oid = 0
         # {hypoid : {表名：xx，列名列表:[xx,xx,xxx]，create_name: xxxx, size:xxx}}
         
         # TODO: see cost_evaluation.py for some cache opration?
-        
-
         logging.debug("TiDB connector created: {}".format(db_name))
 
     def _create_connection(self):
@@ -44,11 +43,26 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         )
         self._cursor = self._connection.cursor()
         
+    def gen_oid(self):
+        oid = self.hypo_oid
+        self.hypo_oid += 1
+        return oid
+
     def hypo_create_secondary_index(self, table_name:str, cols:List[str]) -> [int, bool]:
         """
         Return hypoid
         """
-        pass     
+        oid = self.gen_oid()
+        idx_name = "hypo_%d" % (oid)
+        col_str = cols.join(", ")
+        stmt = f"create index %s type hypo on %s (%s)" % (idx_name, table_name, col_str)
+        self.exec_fetch(stmt)
+        self.hypo2info[oid] = {"table_name": table_name, 
+                               "create_name": idx_name, 
+                               "columns": cols, 
+                               "size": 0} # TODO: estimate the size
+        print("[action] create hypo index %s" % (idx_name))
+        return oid
     
     def hypo_create_columnstore_index(self, table_name:str) -> [int, bool]:
         """
@@ -72,7 +86,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         很少执行
         """
-        pass 
+        pass
     
     def hypo_delete_all_physical_designs(self):
         """
@@ -107,7 +121,6 @@ class TiDBDatabaseConnector2(DatabaseConnector):
     
     def get_storage_whole(self, hypo_id_list:List(str)) -> int:
         pass
-    
     
     def import_data(self, table, path, delimiter="|"):
         load_sql = f"load data local infile '{path}' into table {table} fields terminated by '{delimiter}'"
@@ -227,10 +240,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
     #         indexes = self.show_simulated_index(table)
     #         for index in indexes:
     #             res.append(index)
-
     #     return res
-
-
 
     # For TiDBCostEvaluation
     # hypo_oid should have a transformation
