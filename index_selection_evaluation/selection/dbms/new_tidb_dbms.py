@@ -18,11 +18,12 @@ class TiDBDatabaseConnector2(DatabaseConnector):
             db_name = "test"
         self._connection = None
         self.db_name = db_name
+        self._create_connection()
         
         # TODO：外部存一个
         self.hypo2info = {}
         self.hypo_oid = 0
-        # {hypoid : {表名：xx，列名列表:[xx,xx,xxx]，create_name: xxxx, size:xxx}}
+        # {hypoid : {表名：xx，列名列表:[xx,xx,xxx], index_name: xxxx, size:xxx}}
         
         # TODO: see cost_evaluation.py for some cache opration?
         logging.debug("TiDB connector created: {}".format(db_name))
@@ -35,7 +36,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
             self.close()
         self._connection = pymysql.connect(
             host="127.0.0.1",
-            port=4002,
+            port=4000,
             user="root",
             password="",
             database="{}".format(self.db_name),
@@ -54,7 +55,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         oid = self.gen_oid()
         idx_name = "hypo_%d" % (oid)
-        col_str = cols.join(", ")
+        col_str = ", ".join(cols)
         stmt = f"create index %s type hypo on %s (%s)" % (idx_name, table_name, col_str)
         self.exec_fetch(stmt)
         self.hypo2info[oid] = {"table_name": table_name, 
@@ -104,11 +105,12 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         给 hypoid 这里可以统一处理 tikv hypo 和 Tiflash hypo
         """
         hypo = self.hypo2info[hypo_id]
-        if hypo["is_tiflash"]:
+        if "is_tiflash" in hypo and hypo["is_tiflash"]:
             stmt = f"alter table %s set hypo tiflash replica 0" % (hypo["table_name"])
         else:
-            stmt = f"drop hypo index %s on %s" % (hypo["index_name"], hypp["table_name"])
+            stmt = f"drop hypo index %s on %s" % (hypo["index_name"], hypo["table_name"])
         self.exec_fetch(stmt)
+        del self.hypo2info[hypo_id]
     
     def hypo_get_count(self) -> int:
         """
@@ -128,7 +130,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
     def get_storage_single(self, hypo_id:str) -> int:
         pass
     
-    def get_storage_whole(self, hypo_id_list:List(str)) -> int:
+    def get_storage_whole(self, hypo_id_list) -> int:
         pass
     
     def import_data(self, table, path, delimiter="|"):
