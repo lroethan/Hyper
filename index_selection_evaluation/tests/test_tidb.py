@@ -19,5 +19,12 @@ class TestTiDB(unittest.TestCase):
         db.hypo_delete_single_physical_design(oid)
         oid = db.hypo_create_columnstore_index("t")
         db.hypo_delete_single_physical_design(oid)
+
+        db.hypo_create_secondary_index("t", ["a", "b", "c"])
+        db.hypo_create_secondary_index("t", ["a", "b", "c"])
+        db.hypo_create_secondary_index("t", ["a", "b", "c"])
+        db.hypo_create_columnstore_index("t")
+        db.hypo_delete_all_physical_designs()
+        
         db.exec_fetch("drop table t")
         db.close()

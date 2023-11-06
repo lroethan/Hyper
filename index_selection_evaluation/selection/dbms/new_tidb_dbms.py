@@ -74,18 +74,21 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         self.exec_fetch(stmt)
         self.hypo2info[oid] = {"table_name": table_name,
                                "is_tiflash": True}
+        print("[action] create hypo tiflash %s" % (table_name))
         return oid
     
     def real_create_secondary_index(self, table_name:str, cols:List[str]) -> bool:
         """
         Return 是否建立成功，这个是用来最后真实的建立索引之后看建立索引之后 time delay 上的效果的，很少调用
         """
-        pass    
+        # TODO
+        pass
     
     def real_create_columnstore_index(self, table_name:str) -> bool:
         """
         Return 是否建立成功，这个是用来最后真实的建立索引之后看建立索引之后 time delay 上的效果的，很少调用
         """
+        # TODO
         pass   
     
     def real_delete_all_physical_designs(self):
@@ -98,7 +101,11 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         更新 _conn 即可
         """
-        pass 
+        oids = []
+        for oid in self.hypo2info:
+            oids.append(oid)
+        for oid in oids:
+            self.hypo_delete_single_physical_design(oid)
     
     def hypo_delete_single_physical_design(self, hypo_id:int) -> bool:
         """
@@ -107,8 +114,10 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         hypo = self.hypo2info[hypo_id]
         if "is_tiflash" in hypo and hypo["is_tiflash"]:
             stmt = f"alter table %s set hypo tiflash replica 0" % (hypo["table_name"])
+            print("[action] drop hypo tiflash %s" % hypo["table_name"])
         else:
             stmt = f"drop hypo index %s on %s" % (hypo["index_name"], hypo["table_name"])
+            print("[action] drop hypo index %s %s" % (hypo["table_name"], hypo["index_name"]))
         self.exec_fetch(stmt)
         del self.hypo2info[hypo_id]
     
