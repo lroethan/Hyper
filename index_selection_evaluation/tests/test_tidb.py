@@ -51,7 +51,11 @@ class TestTiDB(unittest.TestCase):
     #     # db.exec_fetch("drop table tt")
     #     pass
 
-    def test_tidb_plan_cost(self):
+    # def test_tidb_plan_cost(self):
+    #     db = TiDBDatabaseConnector2("test")
+    #     print(db.get_plan_single("select * from tt where a=1"))
+    #     print(db.get_cost_single("select * from tt where a=1"))
+
+    def test_tidb_real_physical(self):
         db = TiDBDatabaseConnector2("test")
-        print(db.get_plan_single("select * from tt where a=1"))
-        print(db.get_cost_single("select * from tt where a=1"))
+        db.real_delete_all_physical_designs()
