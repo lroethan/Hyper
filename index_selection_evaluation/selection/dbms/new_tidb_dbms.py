@@ -60,8 +60,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         self.exec_fetch(stmt)
         self.hypo2info[oid] = {"table_name": table_name, 
                                "index_name": idx_name, 
-                               "columns": cols, 
-                               "size": 0} # TODO: estimate the size
+                               "columns": cols}
         print("[action] create hypo index %s" % (idx_name))
         return oid
     
@@ -137,10 +136,50 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         pass
     
     def get_storage_single(self, hypo_id:str) -> int:
-        pass
+        hypo = self.hypo2info[hypo_id]
+        if "is_tiflash" in hypo:
+            return self.get_hypo_tiflash_storage(hypo_id)
+        else:
+            return self.get_hypo_index_storage(hypo_id)
     
     def get_storage_whole(self, hypo_id_list) -> int:
-        pass
+        storage_cost = 0
+        for id in hypo_id_list:
+            storage_cost += self.get_storage_single(id)
+        return storage_cost
+    
+    def get_hypo_index_storage(self, hypo_id):
+        hypo = self.hypo2info[hypo_id]
+        col_size = 0
+        for col in hypo["columns"]:
+            col_size += self.get_column_avg_size(self.db_name, hypo["table_name"], col)
+        rows = self.get_total_rows(self.db_name, hypo["table_name"])
+        return rows * col_size
+    
+    def get_hypo_tiflash_storage(self, hypo_id):
+        hypo = self.hypo2info[hypo_id]
+        col_size = self.get_table_avg_size(self.db_name, hypo["table_name"])
+        rows = self.get_total_rows(self.db_name, hypo["table_name"])
+        compression_rate = 0.35
+        return rows * col_size * compression_rate
+
+    def get_column_avg_size(self, db_name, tbl_name, col_name):
+        stmt = f"show stats_histograms where db_name='%s' and table_name='%s' and column_name='%s' and is_index=0" % (db_name, tbl_name, col_name)
+        avg_size_in_byte = self.exec_fetch(stmt, True)[0][8]
+        return float(avg_size_in_byte)
+    
+    def get_table_avg_size(self, db_name, tbl_name):
+        stmt = f"show stats_histograms where db_name='%s' and table_name='%s' and is_index=0" % (db_name, tbl_name)
+        rows = self.exec_fetch(stmt)
+        col_size = 0
+        for r in rows:
+            col_size += float(r[8])
+        return col_size
+
+    def get_total_rows(self, db_name, tbl_name):
+        stmt = f"show stats_meta where db_name='%s' and table_name='%s'" % (db_name, tbl_name)
+        row_count = self.exec_fetch(stmt, True)[0][5]
+        return float(row_count)
     
     def import_data(self, table, path, delimiter="|"):
         load_sql = f"load data local infile '{path}' into table {table} fields terminated by '{delimiter}'"
