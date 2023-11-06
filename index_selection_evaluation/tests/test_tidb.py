@@ -1,4 +1,5 @@
 import unittest
+from time import sleep
 
 from selection.dbms.new_tidb_dbms import TiDBDatabaseConnector2
 from selection.index import Index
@@ -28,3 +29,24 @@ class TestTiDB(unittest.TestCase):
         
         db.exec_fetch("drop table t")
         db.close()
+
+    def test_tidb_storage(self):
+        db = TiDBDatabaseConnector2("test")
+        # db.exec_only("drop table if exists tt")
+        # db.exec_only("create table tt (a int, b int, c int)")
+        # db.exec_only("insert into tt values (1, 1, 1), (2, 2, 2)")
+        # db.exec_only("analyze table tt")
+        oid = db.hypo_create_secondary_index("tt", ["a", "b"])
+        storage = db.get_storage_single(oid)
+        print(">> ", storage)
+
+        oid = db.hypo_create_secondary_index("tt", ["a", "b", "c"])
+        storage = db.get_storage_single(oid)
+        print(">> ", storage)
+
+        oid = db.hypo_create_columnstore_index("tt")
+        storage = db.get_storage_single(oid)
+        print(">> ", storage)
+
+        # db.exec_fetch("drop table tt")
+        pass

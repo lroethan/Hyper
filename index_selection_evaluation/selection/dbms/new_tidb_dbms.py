@@ -57,7 +57,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         idx_name = "hypo_%d" % (oid)
         col_str = ", ".join(cols)
         stmt = f"create index %s type hypo on %s (%s)" % (idx_name, table_name, col_str)
-        self.exec_fetch(stmt)
+        self.exec_only(stmt)
         self.hypo2info[oid] = {"table_name": table_name, 
                                "index_name": idx_name, 
                                "columns": cols}
@@ -70,7 +70,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
         """
         oid = self.gen_oid()
         stmt = f"alter table %s set hypo tiflash replica 1" % (table_name)
-        self.exec_fetch(stmt)
+        self.exec_only(stmt)
         self.hypo2info[oid] = {"table_name": table_name,
                                "is_tiflash": True}
         print("[action] create hypo tiflash %s" % (table_name))
@@ -135,7 +135,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
     def get_cost_workload(self, workload:List[str]) -> int:
         pass
     
-    def get_storage_single(self, hypo_id:str) -> int:
+    def get_storage_single(self, hypo_id:int) -> int:
         hypo = self.hypo2info[hypo_id]
         if "is_tiflash" in hypo:
             return self.get_hypo_tiflash_storage(hypo_id)
@@ -165,12 +165,12 @@ class TiDBDatabaseConnector2(DatabaseConnector):
 
     def get_column_avg_size(self, db_name, tbl_name, col_name):
         stmt = f"show stats_histograms where db_name='%s' and table_name='%s' and column_name='%s' and is_index=0" % (db_name, tbl_name, col_name)
-        avg_size_in_byte = self.exec_fetch(stmt, True)[0][8]
+        avg_size_in_byte = self.exec_fetch(stmt, True)[8]
         return float(avg_size_in_byte)
     
     def get_table_avg_size(self, db_name, tbl_name):
         stmt = f"show stats_histograms where db_name='%s' and table_name='%s' and is_index=0" % (db_name, tbl_name)
-        rows = self.exec_fetch(stmt)
+        rows = self.exec_fetch(stmt, one=False)
         col_size = 0
         for r in rows:
             col_size += float(r[8])
@@ -178,7 +178,7 @@ class TiDBDatabaseConnector2(DatabaseConnector):
 
     def get_total_rows(self, db_name, tbl_name):
         stmt = f"show stats_meta where db_name='%s' and table_name='%s'" % (db_name, tbl_name)
-        row_count = self.exec_fetch(stmt, True)[0][5]
+        row_count = self.exec_fetch(stmt, True)[5]
         return float(row_count)
     
     def import_data(self, table, path, delimiter="|"):
